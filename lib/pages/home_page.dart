@@ -4,7 +4,6 @@ import '../database/database_helper.dart';
 import '../models/diary_entry.dart';
 import 'edit_diary_page.dart';
 import 'diary_detail_page.dart';
-import '../l10n/app_localizations.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -40,33 +39,32 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.appName),
+        title: const Text('DayLog'),
         centerTitle: true,
         actions: [
           IconButton(
             icon: const Icon(Icons.calendar_month),
             onPressed: () => _showCalendar(context),
-            tooltip: l10n.calendar,
+            tooltip: 'Calendar',
           ),
         ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _entries.isEmpty
-              ? _buildEmptyState(l10n)
+              ? _buildEmptyState()
               : _buildDiaryList(),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _navigateToEdit(context),
         icon: const Icon(Icons.edit),
-        label: Text(l10n.newDiary),
+        label: const Text('New Diary'),
       ),
     );
   }
 
-  Widget _buildEmptyState(AppLocalizations l10n) {
+  Widget _buildEmptyState() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -78,14 +76,14 @@ class _HomePageState extends State<HomePage> {
           ),
           const SizedBox(height: 16),
           Text(
-            l10n.noEntries,
+            'No diary entries yet',
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   color: Theme.of(context).colorScheme.outline,
                 ),
           ),
           const SizedBox(height: 8),
           Text(
-            l10n.noEntriesHint,
+            'Tap the button below to write your first diary entry!',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: Theme.of(context).colorScheme.outline,
                 ),
@@ -103,11 +101,6 @@ class _HomePageState extends State<HomePage> {
         itemCount: _entries.length,
         itemBuilder: (context, index) {
           final entry = _entries[index];
-          final displayTitle = entry.title != null && entry.title!.isNotEmpty
-              ? entry.title!
-              : (entry.content.length > 50
-                  ? '${entry.content.substring(0, 50)}...'
-                  : entry.content);
           return Card(
             margin: const EdgeInsets.symmetric(vertical: 4),
             child: ListTile(
@@ -116,7 +109,9 @@ class _HomePageState extends State<HomePage> {
                 style: const TextStyle(fontSize: 32),
               ),
               title: Text(
-                displayTitle,
+                entry.content.length > 50
+                    ? '...'
+                    : entry.content,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -193,9 +188,8 @@ class _CalendarPageState extends State<CalendarPage> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.calendar)),
+      appBar: AppBar(title: const Text('Calendar')),
       body: Column(
         children: [
           TableCalendar(
@@ -226,6 +220,7 @@ class _CalendarPageState extends State<CalendarPage> {
   }
 
   void _navigateToDay(DateTime day) {
+    final dateStr = '--';
     final entries = _events[DateTime(day.year, day.month, day.day)] ?? [];
     if (entries.isNotEmpty) {
       Navigator.push(

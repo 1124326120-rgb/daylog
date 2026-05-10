@@ -3,10 +3,8 @@ import "database/database_helper.dart";
 import "pages/home_page.dart";
 import "pages/edit_diary_page.dart";
 import "pages/bottle_page.dart";
-import "pages/settings_page.dart";
+import "pages/settings_page.dart"; // exports ProfilePage
 import "services/notification_service.dart";
-import "l10n/app_localizations.dart";
-import "providers/locale_provider.dart";
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,44 +21,13 @@ void main() async {
   runApp(const DayLogApp());
 }
 
-class DayLogApp extends StatefulWidget {
+class DayLogApp extends StatelessWidget {
   const DayLogApp({super.key});
-
-  @override
-  State<DayLogApp> createState() => _DayLogAppState();
-}
-
-class _DayLogAppState extends State<DayLogApp> {
-  final LocaleProvider _localeProvider = LocaleProvider();
-
-  @override
-  void initState() {
-    super.initState();
-    _localeProvider.addListener(_onLocaleChange);
-  }
-
-  @override
-  void dispose() {
-    _localeProvider.removeListener(_onLocaleChange);
-    super.dispose();
-  }
-
-  void _onLocaleChange() {
-    setState(() {});
-  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: "DayLog",
-      locale: _localeProvider.locale,
-      supportedLocales: const [
-        Locale('en', 'US'),
-        Locale('zh', 'CN'),
-      ],
-      localizationsDelegates: const [
-        AppLocalizations.delegate,
-      ],
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorSchemeSeed: const Color(0xFF4CAF50),
@@ -73,15 +40,13 @@ class _DayLogAppState extends State<DayLogApp> {
         brightness: Brightness.dark,
       ),
       themeMode: ThemeMode.system,
-      home: MainScaffold(localeProvider: _localeProvider),
+      home: const MainScaffold(),
     );
   }
 }
 
 class MainScaffold extends StatefulWidget {
-  final LocaleProvider localeProvider;
-
-  const MainScaffold({super.key, required this.localeProvider});
+  const MainScaffold({super.key});
 
   @override
   State<MainScaffold> createState() => _MainScaffoldState();
@@ -90,49 +55,52 @@ class MainScaffold extends StatefulWidget {
 class _MainScaffoldState extends State<MainScaffold> {
   int _currentIndex = 0;
 
+  final List<Widget> _pages = const [
+    HomePage(),
+    EditDiaryPage(),
+    BottlePage(),
+    ProfilePage(),
+  ];
+
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final pages = <Widget>[
-      const HomePage(),
-      const EditDiaryPage(),
-      const BottlePage(),
-      ProfilePage(localeProvider: widget.localeProvider),
-    ];
-
     return Scaffold(
       body: IndexedStack(
         index: _currentIndex,
-        children: pages,
+        children: _pages,
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
         onDestinationSelected: (index) {
           setState(() => _currentIndex = index);
         },
-        destinations: [
+        destinations: const [
           NavigationDestination(
-            icon: const Icon(Icons.home_outlined),
-            selectedIcon: const Icon(Icons.home),
-            label: l10n.home,
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home),
+            label: "Home",
           ),
           NavigationDestination(
-            icon: const Icon(Icons.edit_note_outlined),
-            selectedIcon: const Icon(Icons.edit_note),
-            label: l10n.write,
+            icon: Icon(Icons.edit_note_outlined),
+            selectedIcon: Icon(Icons.edit_note),
+            label: "Write",
           ),
           NavigationDestination(
-            icon: const Icon(Icons.water_drop_outlined),
-            selectedIcon: const Icon(Icons.water_drop),
-            label: l10n.bottle,
+            icon: Icon(Icons.water_drop_outlined),
+            selectedIcon: Icon(Icons.water_drop),
+            label: "Bottle",
           ),
           NavigationDestination(
-            icon: const Icon(Icons.person_outlined),
-            selectedIcon: const Icon(Icons.person),
-            label: l10n.profile,
+            icon: Icon(Icons.person_outlined),
+            selectedIcon: Icon(Icons.person),
+            label: "Profile",
           ),
         ],
       ),
     );
   }
 }
+
+
+
+

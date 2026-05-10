@@ -2,7 +2,6 @@
 import '../database/database_helper.dart';
 import '../models/diary_entry.dart';
 import 'diary_detail_page.dart';
-import '../l10n/app_localizations.dart';
 
 class ThisDayLastYear extends StatefulWidget {
   const ThisDayLastYear({super.key});
@@ -25,7 +24,7 @@ class _ThisDayLastYearState extends State<ThisDayLastYear> {
   Future<void> _loadLastYearEntry() async {
     final now = DateTime.now();
     final lastYear = DateTime(now.year - 1, now.month, now.day);
-    final dateStr = "${lastYear.year}-${lastYear.month.toString().padLeft(2, '0')}-${lastYear.day.toString().padLeft(2, '0')}";
+    final dateStr = '--';
     _lastYearDate = dateStr;
 
     final entry = await DiaryDatabaseHelper.instance.getByDate(dateStr);
@@ -34,18 +33,17 @@ class _ThisDayLastYearState extends State<ThisDayLastYear> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.thisDayLastYear)),
+      appBar: AppBar(title: const Text('This Day Last Year')),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _entry == null
-              ? _buildEmptyState(l10n)
+              ? _buildEmptyState()
               : _buildEntry(),
     );
   }
 
-  Widget _buildEmptyState(AppLocalizations l10n) {
+  Widget _buildEmptyState() {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -59,16 +57,23 @@ class _ThisDayLastYearState extends State<ThisDayLastYear> {
             ),
             const SizedBox(height: 24),
             Text(
-              l10n.noEntryLastYear,
+              'No entry from last year',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 color: Theme.of(context).colorScheme.outline,
               ),
             ),
             const SizedBox(height: 12),
             Text(
-              '${l10n.noEntryLastYearHint}',
+              'There is no diary entry for  yet.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.outline,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Keep writing every day ',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: Theme.of(context).colorScheme.outline,
               ),
             ),
@@ -91,7 +96,7 @@ class _ThisDayLastYearState extends State<ThisDayLastYear> {
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              AppLocalizations.of(context).fromOneYearAgo,
+              'From 1 year ago',
               style: TextStyle(color: Theme.of(context).colorScheme.onPrimaryContainer),
             ),
           ),
@@ -123,7 +128,7 @@ class _ThisDayLastYearState extends State<ThisDayLastYear> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(_entry!.date, style: Theme.of(context).textTheme.titleMedium),
-                            Text(AppLocalizations.of(context).oneYearAgo, style: Theme.of(context).textTheme.bodySmall),
+                            Text('One year ago today', style: Theme.of(context).textTheme.bodySmall),
                           ],
                         ),
                       ],
@@ -141,7 +146,7 @@ class _ThisDayLastYearState extends State<ThisDayLastYear> {
           ),
           const SizedBox(height: 16),
           Text(
-            AppLocalizations.of(context).tapToViewFull,
+            'Tap the card to view full details',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: Theme.of(context).colorScheme.outline,
             ),
@@ -151,3 +156,4 @@ class _ThisDayLastYearState extends State<ThisDayLastYear> {
     );
   }
 }
+

@@ -3,13 +3,12 @@ import 'package:flutter/material.dart';
 import '../database/database_helper.dart';
 import '../models/diary_entry.dart';
 import 'share_page.dart';
-import '../l10n/app_localizations.dart';
 
 String _timeAgo(DateTime dt) {
   final diff = DateTime.now().difference(dt);
-  if (diff.inDays > 0) return '${diff.inDays}d ago';
-  if (diff.inHours > 0) return '${diff.inHours}h ago';
-  if (diff.inMinutes > 0) return '${diff.inMinutes}m ago';
+  if (diff.inDays > 0) return 'd ago';
+  if (diff.inHours > 0) return 'h ago';
+  if (diff.inMinutes > 0) return 'm ago';
   return 'just now';
 }
 
@@ -29,6 +28,7 @@ class _ReviewPageState extends State<ReviewPage> with SingleTickerProviderStateM
     _tabController = TabController(length: 2, vsync: this);
   }
 
+  @override
   void _openSharePage() {
     final isWeekly = _tabController.index == 0;
     Navigator.push(
@@ -47,22 +47,21 @@ class _ReviewPageState extends State<ReviewPage> with SingleTickerProviderStateM
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.review),
+        title: const Text("Review"),
         actions: [
           IconButton(
             icon: const Icon(Icons.share),
-            tooltip: l10n.shareReport,
+            tooltip: "Share this report",
             onPressed: () => _openSharePage(),
           ),
         ],
         bottom: TabBar(
           controller: _tabController,
-          tabs: [
-            Tab(text: l10n.weekly),
-            Tab(text: l10n.monthly),
+          tabs: const [
+            Tab(text: "Weekly"),
+            Tab(text: "Monthly"),
           ],
         ),
       ),
@@ -84,6 +83,7 @@ class _WeeklyReportView extends StatefulWidget {
   State<_WeeklyReportView> createState() => _WeeklyReportViewState();
 }
 
+// Share button for report cards
 class _WeeklyReportViewState extends State<_WeeklyReportView> {
   List<DiaryEntry> _entries = [];
   bool _isLoading = true;
@@ -102,7 +102,6 @@ class _WeeklyReportViewState extends State<_WeeklyReportView> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
     if (_isLoading) return const Center(child: CircularProgressIndicator());
     if (_entries.isEmpty) {
       return Center(
@@ -111,9 +110,9 @@ class _WeeklyReportViewState extends State<_WeeklyReportView> {
           children: [
             Icon(Icons.bar_chart, size: 64, color: Theme.of(context).colorScheme.outline),
             const SizedBox(height: 16),
-            Text(l10n.noEntriesWeek, style: Theme.of(context).textTheme.titleMedium),
+            Text('No entries this week', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
-            Text(l10n.noEntriesWeekHint,
+            Text('Write some diary entries to see your weekly review!',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: Theme.of(context).colorScheme.outline,
               ),
@@ -128,7 +127,7 @@ class _WeeklyReportViewState extends State<_WeeklyReportView> {
     final sunday = monday.add(const Duration(days: 6));
     final dateStr = '${_fmt(monday)} ~ ${_fmt(sunday)}';
     return _ReportCard(
-      title: l10n.weeklyReview,
+      title: 'Weekly Review',
       subtitle: dateStr,
       entries: _entries,
       isWeekly: true,
@@ -163,7 +162,6 @@ class _MonthlyReportViewState extends State<_MonthlyReportView> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
     if (_isLoading) return const Center(child: CircularProgressIndicator());
     if (_entries.isEmpty) {
       return Center(
@@ -172,7 +170,7 @@ class _MonthlyReportViewState extends State<_MonthlyReportView> {
           children: [
             Icon(Icons.calendar_view_month, size: 64, color: Theme.of(context).colorScheme.outline),
             const SizedBox(height: 16),
-            Text(l10n.noEntriesMonth, style: Theme.of(context).textTheme.titleMedium),
+            Text('No entries this month', style: Theme.of(context).textTheme.titleMedium),
           ],
         ),
       );
@@ -181,7 +179,7 @@ class _MonthlyReportViewState extends State<_MonthlyReportView> {
     final now = DateTime.now();
     final dateStr = '${now.year}/${now.month}';
     return _ReportCard(
-      title: l10n.monthlyReview,
+      title: 'Monthly Review',
       subtitle: dateStr,
       entries: _entries,
       isWeekly: false,
@@ -204,6 +202,7 @@ class _ReportCard extends StatelessWidget {
     required this.isWeekly,
   });
 
+  // Extract top 5 keywords by simple word frequency
   List<_Keyword> _getTopKeywords() {
     final stopWords = {'the', 'a', 'an', 'is', 'was', 'are', 'were', 'in', 'on', 'at',
       'to', 'for', 'of', 'and', 'or', 'but', 'it', 'this', 'that', 'with', 'from',
@@ -235,6 +234,7 @@ class _ReportCard extends StatelessWidget {
     return sorted.take(5).map((e) => _Keyword(e.key, e.value)).toList();
   }
 
+  // Mood distribution
   Map<String, int> _getMoodDistribution() {
     final moodCount = <String, int>{};
     for (final entry in entries) {
@@ -243,6 +243,7 @@ class _ReportCard extends StatelessWidget {
     return moodCount;
   }
 
+  // Calculate longest consecutive days
   int _longestStreak() {
     if (entries.isEmpty) return 0;
     final dates = entries.map((e) => DateTime.parse(e.date)).toSet().toList()
@@ -260,6 +261,7 @@ class _ReportCard extends StatelessWidget {
     return maxStreak;
   }
 
+  // Weekly mood aggregation
   List<_WeekMood> _getWeeklyMoods() {
     if (entries.isEmpty) return [];
     final now = DateTime.now();
@@ -275,18 +277,18 @@ class _ReportCard extends StatelessWidget {
         freq[m] = (freq[m] ?? 0) + 1;
       }
       final top = freq.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
-      return _WeekMood(e.key, top.isNotEmpty ? top.first.key : '\u{1F610}', e.value.length);
+      return _WeekMood(e.key, top.isNotEmpty ? top.first.key : '😐', e.value.length);
     }).toList()..sort((a, b) => a.week.compareTo(b.week));
   }
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
     final moodDist = _getMoodDistribution();
     final keywords = _getTopKeywords();
     final weeklyMoods = !isWeekly ? _getWeeklyMoods() : [];
     final streak = !isWeekly ? _longestStreak() : 0;
 
+    // Find most meaningful entry (most favorite or most liked)
     DiaryEntry? bestEntry;
     final favorites = entries.where((e) => e.isFavorite == 1).toList();
     if (favorites.isNotEmpty) {
@@ -320,7 +322,7 @@ class _ReportCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Text(
-                        '${entries.length} ${l10n.entriesCount}',
+                        '${entries.length} entries',
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.bold,
                           color: Theme.of(context).colorScheme.onPrimaryContainer,
@@ -334,7 +336,7 @@ class _ReportCard extends StatelessWidget {
             const SizedBox(height: 16),
 
             // Mood distribution
-            Text(l10n.moodDistribution, style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            Text('Mood Distribution', style: Theme.of(context).textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.bold,
             )),
             const SizedBox(height: 8),
@@ -363,7 +365,7 @@ class _ReportCard extends StatelessWidget {
 
             // Keywords
             if (keywords.isNotEmpty) ...[
-              Text(l10n.topKeywords, style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              Text('Top Keywords', style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
               )),
               const SizedBox(height: 8),
@@ -410,8 +412,8 @@ class _ReportCard extends StatelessWidget {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(l10n.longestStreak, style: Theme.of(context).textTheme.titleSmall),
-                          Text('$streak ${l10n.consecutiveDays}', style: Theme.of(context).textTheme.bodyLarge),
+                          Text('Longest Streak', style: Theme.of(context).textTheme.titleSmall),
+                          Text('$streak consecutive days', style: Theme.of(context).textTheme.bodyLarge),
                         ],
                       ),
                     ],
@@ -421,7 +423,7 @@ class _ReportCard extends StatelessWidget {
               const SizedBox(height: 16),
 
               // Monthly mood trend (by week)
-              Text(l10n.moodTrend, style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              Text('Mood Trend', style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
               )),
               const SizedBox(height: 8),
@@ -435,11 +437,11 @@ class _ReportCard extends StatelessWidget {
                         children: [
                           SizedBox(
                             width: 80,
-                            child: Text('${l10n.week} ${wm.week}', style: Theme.of(context).textTheme.bodyMedium),
+                            child: Text('Week ${wm.week}', style: Theme.of(context).textTheme.bodyMedium),
                           ),
                           Text(wm.mood, style: const TextStyle(fontSize: 24)),
                           const SizedBox(width: 8),
-                          Text('(${wm.count} ${l10n.entriesCount})', style: Theme.of(context).textTheme.bodySmall),
+                          Text('(${wm.count} entries)', style: Theme.of(context).textTheme.bodySmall),
                         ],
                       ),
                     )).toList(),
@@ -451,7 +453,7 @@ class _ReportCard extends StatelessWidget {
 
             // Most meaningful diary
             if (bestEntry != null) ...[
-              Text(l10n.mostMeaningful, style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              Text('Most Meaningful', style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
               )),
               const SizedBox(height: 8),
@@ -491,15 +493,15 @@ class _ReportCard extends StatelessWidget {
   }
 }
 
+class _Keyword {
+  final String word;
+  final int count;
+  _Keyword(this.word, this.count);
+}
+
 class _WeekMood {
   final int week;
   final String mood;
   final int count;
   _WeekMood(this.week, this.mood, this.count);
-}
-
-class _Keyword {
-  final String word;
-  final int count;
-  _Keyword(this.word, this.count);
 }

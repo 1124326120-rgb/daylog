@@ -2,7 +2,7 @@
 import "package:image_picker/image_picker.dart";
 import "../database/database_helper.dart";
 import "../models/diary_entry.dart";
-import "../l10n/app_localizations.dart";
+import "../services/leancloud_service.dart";
 
 class EditDiaryPage extends StatefulWidget {
   final DiaryEntry? entry;
@@ -15,22 +15,20 @@ class EditDiaryPage extends StatefulWidget {
 
 class _EditDiaryPageState extends State<EditDiaryPage> {
   late TextEditingController _contentController;
-  late TextEditingController _titleController;
-  String _selectedMood = '\u{1F60A}';
+  String _selectedMood = String.fromCharCodes([0x1F60A]);
   String? _imagePath;
   final _formKey = GlobalKey<FormState>();
   bool _alsoThrowBottle = false;
 
   static const List<String> _moods = [
-    '\u{1F60A}', '\u{1F610}', '\u{1F622}', '\u{1F621}',
-    '\u{1F634}', '\u{1F970}', '\u{1F914}', '\u{1F64F}',
+    String.fromCharCodes([0x1F60A]), String.fromCharCodes([0x1F610]), String.fromCharCodes([0x1F622]), String.fromCharCodes([0x1F621]),
+    String.fromCharCodes([0x1F634]), String.fromCharCodes([0x1F970]), String.fromCharCodes([0x1F914]), String.fromCharCodes([0x1F64F]),
   ];
 
   @override
   void initState() {
     super.initState();
     _contentController = TextEditingController(text: widget.entry?.content ?? "");
-    _titleController = TextEditingController(text: widget.entry?.title ?? "");
     if (widget.entry != null) {
       _selectedMood = widget.entry!.moodEmoji;
       _imagePath = widget.entry!.imagePath;
@@ -40,7 +38,6 @@ class _EditDiaryPageState extends State<EditDiaryPage> {
   @override
   void dispose() {
     _contentController.dispose();
-    _titleController.dispose();
     super.dispose();
   }
 
@@ -53,13 +50,11 @@ class _EditDiaryPageState extends State<EditDiaryPage> {
     if (!_formKey.currentState!.validate()) return;
 
     final content = _contentController.text.trim();
-    final title = _titleController.text.trim();
     final dateStr = _getTodayDate();
 
     final entry = DiaryEntry(
       id: widget.entry?.id,
       date: dateStr,
-      title: title.isEmpty ? null : title,
       content: content,
       moodEmoji: _selectedMood,
       imagePath: _imagePath,
@@ -72,24 +67,25 @@ class _EditDiaryPageState extends State<EditDiaryPage> {
       await DiaryDatabaseHelper.instance.update(entry);
     }
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context).saved)),
-      );
+    // If "also throw bottle" is checked, send to LeanCloud
+    if (_alsoThrowBottle && widget.entry == null) {
+      try {
+        await LeanCloudService.instance.throwBottle(content, _selectedMood);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Diary saved and thrown into the sea! ")),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Diary saved, but bottle throw failed: ${e.toString()}")),
+          );
+        }
+      }
     }
 
-    // Only pop if we were pushed as a route (not as a tab)
-    if (mounted && Navigator.of(context).canPop()) {
-      Navigator.pop(context, true);
-    } else if (mounted) {
-      // Tab mode: clear form instead
-      _contentController.clear();
-      _titleController.clear();
-      setState(() {
-        _selectedMood = '\u{1F60A}';
-        _imagePath = null;
-      });
-    }
+    if (mounted) Navigator.pop(context, true);
   }
 
   Future<void> _pickImage() async {
@@ -134,14 +130,13 @@ class _EditDiaryPageState extends State<EditDiaryPage> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.entry == null ? l10n.newDiaryTitle : l10n.editDiaryTitle),
+        title: Text(widget.entry == null ? "New Diary" : "Edit Diary"),
         actions: [
           TextButton(
             onPressed: _save,
-            child: Text(l10n.save, style: const TextStyle(fontWeight: FontWeight.bold)),
+            child: const Text("Save", style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -159,19 +154,7 @@ class _EditDiaryPageState extends State<EditDiaryPage> {
                     ),
               ),
               const SizedBox(height: 16),
-              // Title field
-              Text(l10n.titleLabel, style: Theme.of(context).textTheme.titleSmall),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _titleController,
-                decoration: InputDecoration(
-                  hintText: l10n.titleHint,
-                  border: const OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              // Mood selector
-              Text(l10n.howAreYouFeeling, style: Theme.of(context).textTheme.titleSmall),
+              Text("How are you feeling?", style: Theme.of(context).textTheme.titleSmall),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
@@ -208,53 +191,51 @@ class _EditDiaryPageState extends State<EditDiaryPage> {
                 }).toList(),
               ),
               const SizedBox(height: 16),
-              // Photo picker
               Row(
                 children: [
                   OutlinedButton.icon(
                     onPressed: _pickImage,
                     icon: const Icon(Icons.photo_library),
-                    label: Text(l10n.addPhoto),
+                    label: const Text("Add Photo"),
                   ),
                   if (_imagePath != null) ...[
                     const SizedBox(width: 8),
                     Chip(
                       avatar: const Icon(Icons.check, size: 16),
-                      label: Text(l10n.photoSelected),
+                      label: const Text("Photo selected"),
                       onDeleted: () => setState(() => _imagePath = null),
                     ),
                   ],
                 ],
               ),
               const SizedBox(height: 16),
-              // Content
-              Text(l10n.diaryContent, style: Theme.of(context).textTheme.titleSmall),
+              Text("Diary Content", style: Theme.of(context).textTheme.titleSmall),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _contentController,
                 maxLines: 10,
-                decoration: InputDecoration(
-                  hintText: l10n.writeThoughts,
-                  border: const OutlineInputBorder(),
+                decoration: const InputDecoration(
+                  hintText: "Write your thoughts here...",
+                  border: OutlineInputBorder(),
                   alignLabelWithHint: true,
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
-                    return l10n.pleaseWriteSomething;
+                    return "Please write something";
                   }
                   return null;
                 },
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
               // Also throw bottle switch
               Card(
                 child: SwitchListTile(
-                  title: Text(l10n.alsoThrowBottle),
-                  subtitle: Text(l10n.bottleSubtitle),
+                  title: const Text("Also throw into the sea"),
+                  subtitle: const Text("Share this diary entry anonymously as a bottle"),
                   secondary: const Icon(Icons.water_drop_outlined),
                   value: _alsoThrowBottle,
                   onChanged: widget.entry != null
-                      ? null
+                      ? null  // only for new entries
                       : (val) => setState(() => _alsoThrowBottle = val),
                 ),
               ),
@@ -262,7 +243,7 @@ class _EditDiaryPageState extends State<EditDiaryPage> {
                 Padding(
                   padding: const EdgeInsets.only(top: 4),
                   child: Text(
-                    l10n.bottleOnlyNew,
+                    "Bottle sharing is only available for new diary entries.",
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: Theme.of(context).colorScheme.outline,
                     ),

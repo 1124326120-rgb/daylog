@@ -2,7 +2,6 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../models/diary_entry.dart';
-import '../models/bottle.dart';
 
 class DiaryDatabaseHelper {
   static final DiaryDatabaseHelper instance = DiaryDatabaseHelper._init();
@@ -21,7 +20,7 @@ class DiaryDatabaseHelper {
     final path = join(dbPath, fileName);
     return await openDatabase(
       path,
-      version: 3,
+      version: 2,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -32,7 +31,6 @@ class DiaryDatabaseHelper {
       CREATE TABLE diaries (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         date TEXT NOT NULL,
-        title TEXT,
         content TEXT NOT NULL,
         mood_emoji TEXT NOT NULL,
         image_path TEXT,
@@ -42,36 +40,13 @@ class DiaryDatabaseHelper {
       )
     ''');
     await db.execute('CREATE INDEX idx_diaries_date ON diaries(date)');
-    await db.execute('''
-      CREATE TABLE bottles (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        content TEXT NOT NULL,
-        mood_emoji TEXT NOT NULL,
-        likes_count INTEGER NOT NULL DEFAULT 0,
-        created_at TEXT NOT NULL
-      )
-    ''');
   }
 
   Future<void> _upgradeDB(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 2) {
       await db.execute('ALTER TABLE diaries ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0');
     }
-    if (oldVersion < 3) {
-      await db.execute('ALTER TABLE diaries ADD COLUMN title TEXT');
-      await db.execute('''
-        CREATE TABLE IF NOT EXISTS bottles (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          content TEXT NOT NULL,
-          mood_emoji TEXT NOT NULL,
-          likes_count INTEGER NOT NULL DEFAULT 0,
-          created_at TEXT NOT NULL
-        )
-      ''');
-    }
   }
-
-  // --- Diary CRUD ---
 
   Future<int> insert(DiaryEntry entry) async {
     final db = await database;
@@ -151,49 +126,5 @@ class DiaryDatabaseHelper {
 
   Future<void> initialize() async {
     await database;
-  }
-
-  // --- Local Bottle CRUD ---
-
-  Future<int> insertBottle(Bottle bottle) async {
-    final db = await database;
-    return await db.insert('bottles', {
-      'content': bottle.content,
-      'mood_emoji': bottle.moodEmoji,
-      'likes_count': bottle.likesCount,
-      'created_at': bottle.createdAt,
-    });
-  }
-
-  Future<int> getBottleCount() async {
-    final db = await database;
-    final result = await db.rawQuery('SELECT COUNT(*) as count FROM bottles');
-    return Sqflite.firstIntValue(result) ?? 0;
-  }
-
-  Future<Bottle?> getRandomBottle() async {
-    final db = await database;
-    final count = await getBottleCount();
-    if (count == 0) return null;
-    final random = DateTime.now().millisecondsSinceEpoch % count;
-    final maps = await db.query('bottles', limit: 1, offset: random, orderBy: 'id ASC');
-    if (maps.isEmpty) return null;
-    return Bottle(
-      id: maps[0]['id'].toString(),
-      content: maps[0]['content'] as String,
-      moodEmoji: maps[0]['mood_emoji'] as String,
-      likesCount: maps[0]['likes_count'] as int? ?? 0,
-      createdAt: maps[0]['created_at'] as String,
-    );
-  }
-
-  Future<void> likeBottle(String bottleId) async {
-    final db = await database;
-    final id = int.tryParse(bottleId);
-    if (id == null) return;
-    await db.rawUpdate(
-      'UPDATE bottles SET likes_count = likes_count + 1 WHERE id = ?',
-      [id],
-    );
   }
 }
