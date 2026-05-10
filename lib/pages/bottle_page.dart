@@ -1,11 +1,9 @@
 ﻿import "package:flutter/material.dart";
-
-
 import "dart:math";
 import "../models/bottle.dart";
-import "../services/leancloud_service.dart";
+import "../database/database_helper.dart";
 import "../services/bottle_limit_service.dart";
-
+import "../l10n/app_localizations.dart";
 
 class BottlePage extends StatefulWidget {
   const BottlePage({super.key});
@@ -25,18 +23,12 @@ class _BottlePageState extends State<BottlePage> with SingleTickerProviderStateM
 
   // Throw form state
   final _contentController = TextEditingController();
-  String _selectedMood = String.fromCharCodes([0x1F60A]);
+  String _selectedMood = '\u{1F60A}';
   bool _isThrowing = false;
 
   static const List<String> _moods = [
-    String.fromCharCodes([0x1F60A]),
-    String.fromCharCodes([0x1F610]),
-    String.fromCharCodes([0x1F622]),
-    String.fromCharCodes([0x1F621]),
-    String.fromCharCodes([0x1F634]),
-    String.fromCharCodes([0x1F970]),
-    String.fromCharCodes([0x1F914]),
-    String.fromCharCodes([0x1F64F]),
+    '\u{1F60A}', '\u{1F610}', '\u{1F622}', '\u{1F621}',
+    '\u{1F634}', '\u{1F970}', '\u{1F914}', '\u{1F64F}',
   ];
 
   @override
@@ -66,34 +58,43 @@ class _BottlePageState extends State<BottlePage> with SingleTickerProviderStateM
 
   Future<void> _throwBottle() async {
     if (_contentController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please write something in your bottle")),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppLocalizations.of(context).pleaseWriteBottle)),
+        );
+      }
       return;
     }
 
     final canThrow = await BottleLimitService.instance.canThrow();
     if (!canThrow) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Daily limit reached! You can only throw 3 bottles per day.")),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppLocalizations.of(context).throwLimitReached)),
+        );
+      }
       return;
     }
 
     setState(() => _isThrowing = true);
 
     try {
-      await LeanCloudService.instance.throwBottle(
-        _contentController.text.trim(),
-        _selectedMood,
+      // Store locally instead of LeanCloud
+      final bottle = Bottle(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        content: _contentController.text.trim(),
+        moodEmoji: _selectedMood,
+        likesCount: 0,
+        createdAt: DateTime.now().toIso8601String(),
       );
+      await DiaryDatabaseHelper.instance.insertBottle(bottle);
       await BottleLimitService.instance.recordThrow();
       await _loadLimits();
       _contentController.clear();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Bottle thrown into the sea! "),
+          SnackBar(
+            content: Text(AppLocalizations.of(context).bottleThrown),
             backgroundColor: Colors.green,
           ),
         );
@@ -101,7 +102,7 @@ class _BottlePageState extends State<BottlePage> with SingleTickerProviderStateM
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Failed: ${e.toString()}")),
+          SnackBar(content: Text("${AppLocalizations.of(context).failed}: ${e.toString()}")),
         );
       }
     } finally {
@@ -112,9 +113,11 @@ class _BottlePageState extends State<BottlePage> with SingleTickerProviderStateM
   Future<void> _pickBottle() async {
     final canPick = await BottleLimitService.instance.canPick();
     if (!canPick) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Daily limit reached! You can only pick 3 bottles per day.")),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppLocalizations.of(context).pickLimitReached)),
+        );
+      }
       return;
     }
 
@@ -126,7 +129,11 @@ class _BottlePageState extends State<BottlePage> with SingleTickerProviderStateM
     });
 
     try {
-      final bottle = await LeanCloudService.instance.pickRandomBottle();
+      // Pick from local database instead of LeanCloud
+      final bottle = await DiaryDatabaseHelper.instance.getRandomBottle();
+      if (bottle == null) {
+        throw Exception('No bottles in the sea');
+      }
       await BottleLimitService.instance.recordPick();
       await _loadLimits();
 
@@ -144,7 +151,7 @@ class _BottlePageState extends State<BottlePage> with SingleTickerProviderStateM
       if (mounted) {
         setState(() {
           _isPicking = false;
-          _errorMessage = "No bottles in the sea yet. Be the first to throw one!";
+          _errorMessage = AppLocalizations.of(context).noBottles;
         });
       }
     }
@@ -153,7 +160,7 @@ class _BottlePageState extends State<BottlePage> with SingleTickerProviderStateM
   Future<void> _likeBottle() async {
     if (_pickedBottle == null) return;
     try {
-      await LeanCloudService.instance.likeBottle(_pickedBottle!.id);
+      await DiaryDatabaseHelper.instance.likeBottle(_pickedBottle!.id);
       if (mounted) {
         setState(() {
           _pickedBottle = Bottle(
@@ -165,16 +172,16 @@ class _BottlePageState extends State<BottlePage> with SingleTickerProviderStateM
           );
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Liked! "),
-            duration: Duration(seconds: 1),
+          SnackBar(
+            content: Text(AppLocalizations.of(context).liked),
+            duration: const Duration(seconds: 1),
           ),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Failed to like: ${e.toString()}")),
+          SnackBar(content: Text("${AppLocalizations.of(context).failedLike}: ${e.toString()}")),
         );
       }
     }
@@ -182,28 +189,29 @@ class _BottlePageState extends State<BottlePage> with SingleTickerProviderStateM
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Bottle"),
+        title: Text(l10n.bottle),
         bottom: TabBar(
           controller: _tabController,
-          tabs: const [
-            Tab(text: "Pick"),
-            Tab(text: "Throw"),
+          tabs: [
+            Tab(text: l10n.pick),
+            Tab(text: l10n.throwBottleLabel),
           ],
         ),
       ),
       body: TabBarView(
         controller: _tabController,
         children: [
-          _buildPickTab(),
-          _buildThrowTab(),
+          _buildPickTab(l10n),
+          _buildThrowTab(l10n),
         ],
       ),
     );
   }
 
-  Widget _buildPickTab() {
+  Widget _buildPickTab(AppLocalizations l10n) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -211,7 +219,7 @@ class _BottlePageState extends State<BottlePage> with SingleTickerProviderStateM
           const SizedBox(height: 16),
           // Remaining picks indicator
           Text(
-            "Picks remaining today: $_remainingPicks",
+            "${l10n.picksRemaining}: $_remainingPicks",
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
               color: Theme.of(context).colorScheme.outline,
             ),
@@ -231,7 +239,7 @@ class _BottlePageState extends State<BottlePage> with SingleTickerProviderStateM
                     )
                   : const Icon(Icons.water_drop, size: 28),
               label: Text(
-                _isPicking ? "Fishing..." : "Pick a Bottle",
+                _isPicking ? l10n.fishing : l10n.pickBottle,
                 style: const TextStyle(fontSize: 18),
               ),
             ),
@@ -240,19 +248,19 @@ class _BottlePageState extends State<BottlePage> with SingleTickerProviderStateM
 
           // Picked bottle display (card flip animation simulation)
           if (_isPicking)
-            _buildPickingAnimation(),
+            _buildPickingAnimation(l10n),
 
           if (_showBottle && _pickedBottle != null)
             _buildBottleCard(),
 
           if (_errorMessage != null)
-            _buildEmptyState(_errorMessage!),
+            _buildEmptyState(l10n, _errorMessage!),
         ],
       ),
     );
   }
 
-  Widget _buildPickingAnimation() {
+  Widget _buildPickingAnimation(AppLocalizations l10n) {
     return Center(
       child: Column(
         children: [
@@ -283,7 +291,7 @@ class _BottlePageState extends State<BottlePage> with SingleTickerProviderStateM
           ),
           const SizedBox(height: 16),
           Text(
-            "Searching the sea...",
+            l10n.searchingSea,
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
               color: Theme.of(context).colorScheme.outline,
             ),
@@ -327,7 +335,7 @@ class _BottlePageState extends State<BottlePage> with SingleTickerProviderStateM
                   Icon(Icons.water_drop, color: Theme.of(context).colorScheme.primary, size: 20),
                   const SizedBox(width: 8),
                   Text(
-                    "A Message in a Bottle",
+                    AppLocalizations.of(context).messageInBottle,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: Theme.of(context).colorScheme.primary,
@@ -383,7 +391,7 @@ class _BottlePageState extends State<BottlePage> with SingleTickerProviderStateM
 
               // Date
               Text(
-                "Drifted in: ${bottle.createdAt.length > 10 ? bottle.createdAt.substring(0, 10) : bottle.createdAt}",
+                "${AppLocalizations.of(context).driftedIn}: ${bottle.createdAt.length > 10 ? bottle.createdAt.substring(0, 10) : bottle.createdAt}",
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: Theme.of(context).colorScheme.outline,
                 ),
@@ -395,7 +403,7 @@ class _BottlePageState extends State<BottlePage> with SingleTickerProviderStateM
     );
   }
 
-  Widget _buildEmptyState(String message) {
+  Widget _buildEmptyState(AppLocalizations l10n, String message) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 32),
       child: Column(
@@ -420,7 +428,7 @@ class _BottlePageState extends State<BottlePage> with SingleTickerProviderStateM
 
   // ---------- Throw Tab ----------
 
-  Widget _buildThrowTab() {
+  Widget _buildThrowTab(AppLocalizations l10n) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -436,7 +444,7 @@ class _BottlePageState extends State<BottlePage> with SingleTickerProviderStateM
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
-                "Throws remaining today: $_remainingThrows",
+                "${l10n.throwsRemaining}: $_remainingThrows",
                 style: TextStyle(
                   color: Theme.of(context).colorScheme.onPrimaryContainer,
                 ),
@@ -447,7 +455,7 @@ class _BottlePageState extends State<BottlePage> with SingleTickerProviderStateM
 
           // Mood emoji selector
           Text(
-            "Your Mood",
+            l10n.yourMood,
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 8),
@@ -482,7 +490,7 @@ class _BottlePageState extends State<BottlePage> with SingleTickerProviderStateM
 
           // Content input
           Text(
-            "Message (max 280 chars)",
+            l10n.bottleMsgLength,
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 8),
@@ -490,9 +498,9 @@ class _BottlePageState extends State<BottlePage> with SingleTickerProviderStateM
             controller: _contentController,
             maxLines: 5,
             maxLength: 280,
-            decoration: const InputDecoration(
-              hintText: "Write a message to put in your bottle...",
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              hintText: l10n.writeBottleMsg,
+              border: const OutlineInputBorder(),
             ),
           ),
           const SizedBox(height: 16),
@@ -510,7 +518,7 @@ class _BottlePageState extends State<BottlePage> with SingleTickerProviderStateM
                     )
                   : const Icon(Icons.send, size: 24),
               label: Text(
-                _isThrowing ? "Throwing..." : "Throw into the Sea",
+                _isThrowing ? l10n.throwing : l10n.throwIntoSea,
                 style: const TextStyle(fontSize: 18),
               ),
               style: ElevatedButton.styleFrom(
@@ -524,7 +532,3 @@ class _BottlePageState extends State<BottlePage> with SingleTickerProviderStateM
     );
   }
 }
-
-
-
-

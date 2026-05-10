@@ -2,6 +2,8 @@
 import '../database/database_helper.dart';
 import '../models/diary_entry.dart';
 import 'edit_diary_page.dart';
+import 'package:share_plus/share_plus.dart';
+import '../l10n/app_localizations.dart';
 
 class DiaryDetailPage extends StatefulWidget {
   final DiaryEntry entry;
@@ -30,19 +32,32 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
     setState(() => _entry = updated);
   }
 
+  void _share() {
+    final title = _entry.title ?? 'My Diary Entry';
+    final text = '${_entry.moodEmoji} $title\n\n${_entry.content}\n\n-- DayLog';
+    Share.share(text, subject: title);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
         title: Text(_entry.date),
         actions: [
+          // Share button
+          IconButton(
+            icon: const Icon(Icons.share),
+            onPressed: _share,
+            tooltip: l10n.share,
+          ),
           IconButton(
             icon: Icon(
               _entry.isFavorite == 1 ? Icons.favorite : Icons.favorite_border,
               color: _entry.isFavorite == 1 ? Colors.red : null,
             ),
             onPressed: _toggleFavorite,
-            tooltip: 'Mark as meaningful',
+            tooltip: l10n.meaningful,
           ),
           IconButton(
             icon: const Icon(Icons.edit),
@@ -82,7 +97,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                     const SizedBox(height: 4),
                     Chip(
                       avatar: const Icon(Icons.favorite, size: 16, color: Colors.red),
-                      label: const Text('Meaningful'),
+                      label: Text(l10n.meaningful),
                       backgroundColor: Colors.red.withValues(alpha: 0.1),
                     ),
                   ],
@@ -90,6 +105,16 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
               ),
             ),
             const SizedBox(height: 24),
+            // Title
+            if (_entry.title != null && _entry.title!.isNotEmpty) ...[
+              Text(
+                _entry.title!,
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
             const Divider(),
             const SizedBox(height: 16),
             Text(
@@ -116,15 +141,16 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
   }
 
   void _confirmDelete(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete Diary'),
-        content: const Text('Are you sure you want to delete this diary entry?'),
+        title: Text(l10n.deleteDiary),
+        content: Text(l10n.deleteConfirm),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancel),
           ),
           TextButton(
             onPressed: () async {
@@ -134,7 +160,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
                 Navigator.pop(context);
               }
             },
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            child: Text(l10n.delete, style: const TextStyle(color: Colors.red)),
           ),
         ],
       ),
