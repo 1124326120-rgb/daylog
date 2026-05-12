@@ -113,6 +113,8 @@ class AppLocalizations {
   String get language => isChinese ? '语言' : 'Language';
   String get chinese => isChinese ? '中文' : 'Chinese';
   String get english => isChinese ? '英文' : 'English';
+  String get languageButtonLabel => isChinese ? '中文' : 'ENGLISH';
+  String get languageStatus => isChinese ? '当前语言：中文' : 'Current: English';
 
   // ---- This Day Last Year ----
   String get thisDayLastYear => isChinese ? '去年的今天' : 'This Day Last Year';

@@ -73,8 +73,8 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
           ),
           SwitchListTile(
-            title: Text(l10n.chinese),
-            subtitle: const Text('中文界面'),
+            title: Text(l10n.languageButtonLabel),
+            subtitle: Text(l10n.languageStatus),
             value: widget.localeProvider.isChinese,
             onChanged: (val) {
               widget.localeProvider.setLocale(val ? 'zh' : 'en');
