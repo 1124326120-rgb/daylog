@@ -23,7 +23,7 @@ class DiaryFormWidget extends StatefulWidget {
 class DiaryFormWidgetState extends State<DiaryFormWidget> {
   late TextEditingController _titleController;
   late TextEditingController _contentController;
-  String _selectedMood = String.fromCharCodes([0x1F60A]);
+  String _selectedMood = '\u{1F60A}';
   String? _imagePath;
   final _formKey = GlobalKey<FormState>();
   bool _alsoThrowBottle = false;
@@ -269,5 +269,5 @@ class DiaryFormWidgetState extends State<DiaryFormWidget> {
       ),
     );
   }
-}
-
+}
+
