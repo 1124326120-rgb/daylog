@@ -1,9 +1,13 @@
 ﻿import 'package:flutter/material.dart';
 import 'this_day_last_year_page.dart';
 import '../services/notification_service.dart';
+import '../providers/locale_provider.dart';
+import '../l10n/app_localizations.dart';
 
 class ProfilePage extends StatefulWidget {
-  const ProfilePage({super.key});
+  final LocaleProvider localeProvider;
+
+  const ProfilePage({super.key, required this.localeProvider});
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
@@ -51,16 +55,17 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Profile')),
+      appBar: AppBar(title: Text(l10n.profile)),
       body: ListView(
         children: [
           const SizedBox(height: 8),
-          // Daily reminder section
+          // Language section
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Text(
-              'Daily Reminder',
+              l10n.language,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 color: Theme.of(context).colorScheme.primary,
                 fontWeight: FontWeight.bold,
@@ -68,13 +73,33 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
           ),
           SwitchListTile(
-            title: const Text('Enable daily reminder'),
-            subtitle: const Text('Get reminded to write your diary'),
+            title: Text(l10n.languageButtonLabel),
+            subtitle: Text(l10n.languageStatus),
+            value: widget.localeProvider.isChinese,
+            onChanged: (val) {
+              widget.localeProvider.setLocale(val ? 'zh' : 'en');
+            },
+          ),
+          const Divider(),
+          // Daily reminder section
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Text(
+              l10n.dailyReminder,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: Theme.of(context).colorScheme.primary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          SwitchListTile(
+            title: Text(l10n.enableReminder),
+            subtitle: Text(l10n.reminderSubtitle),
             value: _reminderEnabled,
             onChanged: _toggleReminder,
           ),
           ListTile(
-            title: const Text('Reminder time'),
+            title: Text(l10n.reminderTime),
             subtitle: Text(_reminderTime.format(context)),
             trailing: const Icon(Icons.access_time),
             onTap: _pickTime,
@@ -82,14 +107,14 @@ class _ProfilePageState extends State<ProfilePage> {
           if (_reminderEnabled)
             ListTile(
               leading: const Icon(Icons.info_outline),
-              title: const Text('Preview notification text'),
-              subtitle: const Text('Today has something worth remembering?'),
+              title: Text(l10n.previewNotification),
+              subtitle: Text(l10n.notificationPreviewText),
             ),
           const Divider(),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Text(
-              'About',
+              l10n.about,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 color: Theme.of(context).colorScheme.primary,
                 fontWeight: FontWeight.bold,
@@ -98,13 +123,11 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
           ListTile(
             leading: const Icon(Icons.info),
-            title: const Text('DayLog'),
-            subtitle: const Text('Version 1.0.0'),
+            title: Text(l10n.appName),
+            subtitle: Text('${l10n.version} 1.0.0'),
           ),
         ],
       ),
     );
   }
-}
-
-
+}
