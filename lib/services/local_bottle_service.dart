@@ -1,4 +1,4 @@
-﻿import 'package:shared_preferences/shared_preferences.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../database/database_helper.dart';
 import '../models/bottle.dart';
 
@@ -21,14 +21,14 @@ class LocalBottleService {
   Future<Bottle?> pickRandomBottle() async {
     final bottle = await DiaryDatabaseHelper.instance.getRandomBottle();
     if (bottle == null) return null;
-    final isLiked = await isLiked(int.parse(bottle.id));
+    final liked = await isLiked(int.parse(bottle.id));
     return Bottle(
       id: bottle.id,
       content: bottle.content,
       moodEmoji: bottle.moodEmoji,
       likesCount: bottle.likesCount,
       createdAt: bottle.createdAt,
-      isLiked: isLiked,
+      isLiked: liked,
     );
   }
 
@@ -57,4 +57,3 @@ class LocalBottleService {
     return DiaryDatabaseHelper.instance.toggleLike(bottleId, deviceId);
   }
 }
-
