@@ -1,4 +1,5 @@
 ﻿import "package:flutter/material.dart";
+import "package:flutter_localizations/flutter_localizations.dart";
 import "database/database_helper.dart";
 import "pages/home_page.dart";
 import "pages/edit_diary_page.dart";
@@ -60,6 +61,9 @@ class _DayLogAppState extends State<DayLogApp> {
       ],
       localizationsDelegates: const [
         AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
       ],
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
