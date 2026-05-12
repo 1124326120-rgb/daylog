@@ -65,10 +65,9 @@ class _ShareReportPageState extends State<ShareReportPage> {
       final file = File("${tempDir.path}/$fileName");
       await file.writeAsBytes(byteData.buffer.asUint8List());
 
-      final l10n = AppLocalizations.of(context);
       await Share.shareXFiles(
         [XFile(file.path)],
-        text: widget.isWeekly ? l10n.myWeekOnDayLog : l10n.myMonthOnDayLog,
+        text: "My moments on DayLog\n\ndaylog://diary/report",
       );
     } catch (e) {
       if (mounted) {
@@ -201,3 +200,4 @@ class _ShareReportPageState extends State<ShareReportPage> {
     );
   }
 }
+

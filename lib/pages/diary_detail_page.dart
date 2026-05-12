@@ -34,7 +34,7 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
 
   void _share() {
     final title = _entry.title ?? 'My Diary Entry';
-    final text = '${_entry.moodEmoji} $title\n\n${_entry.content}\n\n-- DayLog';
+    final text = '${_entry.moodEmoji} $title\n\n${_entry.content}\n\n-- DayLog\n\ndaylog://diary/${_entry.id}';
     Share.share(text, subject: title);
   }
 
@@ -167,3 +167,4 @@ class _DiaryDetailPageState extends State<DiaryDetailPage> {
     );
   }
 }
+

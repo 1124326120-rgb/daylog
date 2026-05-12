@@ -3,6 +3,7 @@ import "package:flutter_localizations/flutter_localizations.dart";
 import "database/database_helper.dart";
 import "pages/home_page.dart";
 import "pages/edit_diary_page.dart";
+import "pages/diary_detail_page.dart";
 import "pages/bottle_page.dart";
 import "pages/settings_page.dart";
 import "services/notification_service.dart";
@@ -78,6 +79,87 @@ class _DayLogAppState extends State<DayLogApp> {
       ),
       themeMode: ThemeMode.system,
       home: MainScaffold(localeProvider: _localeProvider),
+      onGenerateRoute: (settings) {
+        if (settings.name != null && settings.name!.startsWith('daylog://diary/')) {
+          final idStr = settings.name!.split('/').last;
+          final id = int.tryParse(idStr);
+          if (id != null) {
+            return MaterialPageRoute(
+              builder: (_) => DiaryDeepLinkPage(diaryId: id),
+            );
+          }
+        }
+        return null;
+      },
+    );
+  }
+}
+
+/// Temporary page that loads a diary entry by ID and navigates to DiaryDetailPage.
+class DiaryDeepLinkPage extends StatefulWidget {
+  final int diaryId;
+  const DiaryDeepLinkPage({super.key, required this.diaryId});
+
+  @override
+  State<DiaryDeepLinkPage> createState() => _DiaryDeepLinkPageState();
+}
+
+class _DiaryDeepLinkPageState extends State<DiaryDeepLinkPage> {
+  @override
+  void initState() {
+    super.initState();
+    _loadAndNavigate();
+  }
+
+  Future<void> _loadAndNavigate() async {
+    try {
+      final entry = await DiaryDatabaseHelper.instance.getById(widget.diaryId);
+      if (!mounted) return;
+      if (entry != null) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => DiaryDetailPage(entry: entry),
+          ),
+        );
+      } else {
+        _showError("Diary not found");
+      }
+    } catch (e) {
+      if (mounted) {
+        _showError("Failed to load diary: $e");
+      }
+    }
+  }
+
+  void _showError(String message) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => Scaffold(
+            appBar: AppBar(title: const Text("DayLog")),
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, size: 64, color: Colors.grey),
+                  const SizedBox(height: 16),
+                  Text(message, style: const TextStyle(fontSize: 16)),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      body: Center(child: CircularProgressIndicator()),
     );
   }
 }
@@ -140,3 +222,4 @@ class _MainScaffoldState extends State<MainScaffold> {
     );
   }
 }
+

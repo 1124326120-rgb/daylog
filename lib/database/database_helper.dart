@@ -21,7 +21,7 @@ class DiaryDatabaseHelper {
     final path = join(dbPath, fileName);
     return await openDatabase(
       path,
-      version: 3,
+      version: 4,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -51,6 +51,25 @@ class DiaryDatabaseHelper {
         created_at TEXT NOT NULL
       )
     ''');
+    // v4 tables for fresh installs
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS likes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        bottle_id INTEGER NOT NULL,
+        user_device_id TEXT NOT NULL,
+        UNIQUE(bottle_id, user_device_id)
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS drafts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT,
+        content TEXT NOT NULL,
+        mood_emoji TEXT,
+        image_path TEXT,
+        updated_at TEXT NOT NULL
+      )
+    ''');
   }
 
   Future<void> _upgradeDB(Database db, int oldVersion, int newVersion) async {
@@ -69,6 +88,28 @@ class DiaryDatabaseHelper {
         )
       ''');
     }
+    if (oldVersion < 4) {
+      // LGS-38: likes table
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS likes (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          bottle_id INTEGER NOT NULL,
+          user_device_id TEXT NOT NULL,
+          UNIQUE(bottle_id, user_device_id)
+        )
+      ''');
+      // LGS-39: drafts table (single-draft mode)
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS drafts (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          title TEXT,
+          content TEXT NOT NULL,
+          mood_emoji TEXT,
+          image_path TEXT,
+          updated_at TEXT NOT NULL
+        )
+      ''');
+    }
   }
 
   // --- Diary CRUD ---
@@ -84,6 +125,18 @@ class DiaryDatabaseHelper {
       'diaries',
       where: 'date = ?',
       whereArgs: [date],
+      limit: 1,
+    );
+    if (maps.isEmpty) return null;
+    return DiaryEntry.fromMap(maps.first);
+  }
+
+  Future<DiaryEntry?> getById(int id) async {
+    final db = await database;
+    final maps = await db.query(
+      'diaries',
+      where: 'id = ?',
+      whereArgs: [id],
       limit: 1,
     );
     if (maps.isEmpty) return null;
@@ -196,4 +249,85 @@ class DiaryDatabaseHelper {
       [id],
     );
   }
+
+  // --- Likes (LGS-38) ---
+
+  Future<bool> isLiked(int bottleId, String deviceId) async {
+    final db = await database;
+    final result = await db.query(
+      'likes',
+      where: 'bottle_id = ? AND user_device_id = ?',
+      whereArgs: [bottleId, deviceId],
+      limit: 1,
+    );
+    return result.isNotEmpty;
+  }
+
+  Future<bool> toggleLike(int bottleId, String deviceId) async {
+    final db = await database;
+    final existing = await db.query(
+      'likes',
+      where: 'bottle_id = ? AND user_device_id = ?',
+      whereArgs: [bottleId, deviceId],
+      limit: 1,
+    );
+    if (existing.isNotEmpty) {
+      // Unlike
+      await db.delete(
+        'likes',
+        where: 'bottle_id = ? AND user_device_id = ?',
+        whereArgs: [bottleId, deviceId],
+      );
+      await db.rawUpdate(
+        'UPDATE bottles SET likes_count = MAX(0, likes_count - 1) WHERE id = ?',
+        [bottleId],
+      );
+      return false;
+    } else {
+      // Like
+      await db.insert('likes', {
+        'bottle_id': bottleId,
+        'user_device_id': deviceId,
+      });
+      await db.rawUpdate(
+        'UPDATE bottles SET likes_count = likes_count + 1 WHERE id = ?',
+        [bottleId],
+      );
+      return true;
+    }
+  }
+
+  // --- Drafts (LGS-39) ---
+
+  Future<void> saveDraft(DiaryEntry entry) async {
+    final db = await database;
+    await db.delete('drafts'); // single-draft mode
+    await db.insert('drafts', {
+      'title': entry.title,
+      'content': entry.content,
+      'mood_emoji': entry.moodEmoji,
+      'image_path': entry.imagePath,
+      'updated_at': DateTime.now().toIso8601String(),
+    });
+  }
+
+  Future<DiaryEntry?> loadDraft() async {
+    final db = await database;
+    final maps = await db.query('drafts', limit: 1);
+    if (maps.isEmpty) return null;
+    final map = maps.first;
+    return DiaryEntry(
+      date: DateTime.now().toIso8601String().substring(0, 10),
+      title: map['title'] as String?,
+      content: map['content'] as String,
+      moodEmoji: (map['mood_emoji'] as String?) ?? '😊',
+      imagePath: map['image_path'] as String?,
+    );
+  }
+
+  Future<void> clearDrafts() async {
+    final db = await database;
+    await db.delete('drafts');
+  }
 }
+

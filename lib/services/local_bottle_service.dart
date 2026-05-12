@@ -1,3 +1,4 @@
+﻿import 'package:shared_preferences/shared_preferences.dart';
 import '../database/database_helper.dart';
 import '../models/bottle.dart';
 
@@ -18,10 +19,42 @@ class LocalBottleService {
   }
 
   Future<Bottle?> pickRandomBottle() async {
-    return DiaryDatabaseHelper.instance.getRandomBottle();
+    final bottle = await DiaryDatabaseHelper.instance.getRandomBottle();
+    if (bottle == null) return null;
+    final isLiked = await isLiked(int.parse(bottle.id));
+    return Bottle(
+      id: bottle.id,
+      content: bottle.content,
+      moodEmoji: bottle.moodEmoji,
+      likesCount: bottle.likesCount,
+      createdAt: bottle.createdAt,
+      isLiked: isLiked,
+    );
   }
 
   Future<void> likeBottle(String bottleId) async {
     await DiaryDatabaseHelper.instance.likeBottle(bottleId);
   }
+
+  Future<String> _getDeviceId() async {
+    final prefs = await SharedPreferences.getInstance();
+    const key = 'device_user_id';
+    String? id = prefs.getString(key);
+    if (id == null) {
+      id = DateTime.now().microsecondsSinceEpoch.toString();
+      await prefs.setString(key, id);
+    }
+    return id;
+  }
+
+  Future<bool> isLiked(int bottleId) async {
+    final deviceId = await _getDeviceId();
+    return DiaryDatabaseHelper.instance.isLiked(bottleId, deviceId);
+  }
+
+  Future<bool> toggleLike(int bottleId) async {
+    final deviceId = await _getDeviceId();
+    return DiaryDatabaseHelper.instance.toggleLike(bottleId, deviceId);
+  }
 }
+

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 class AppLocalizations {
   final Locale locale;
@@ -82,6 +82,10 @@ class AppLocalizations {
   String get driftedIn => isChinese ? '漂流时间' : 'Drifted in';
   String get yourMood => isChinese ? '你的心情' : 'Your Mood';
 
+  // ---- Draft (LGS-39) ----
+  String get draftSaved => isChinese ? '草稿已保存' : 'Draft saved';
+  String get draftRestored => isChinese ? '已恢复上次的草稿' : 'Previous draft restored';
+
   // ---- Review ----
   String get review => isChinese ? '回顾' : 'Review';
   String get weekly => isChinese ? '周报' : 'Weekly';
@@ -127,7 +131,7 @@ class AppLocalizations {
   // ---- Report Card ----
   String get myWeekOnDayLog => isChinese ? '我在DayLog的这一周' : 'My Week on DayLog';
   String get myMonthOnDayLog => isChinese ? '我在DayLog的这一月' : 'My Month on DayLog';
-  String get madeWithDayLog => isChinese ? '使用 DayLog 记录 — 每一天都有意义' : 'Made with DayLog - Every Day Matters';
+  String get madeWithDayLog => isChinese ? '使用 DayLog 记录 —— 每一天都有意义' : 'Made with DayLog - Every Day Matters';
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
@@ -144,3 +148,4 @@ class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> 
   @override
   bool shouldReload(_AppLocalizationsDelegate old) => false;
 }
+

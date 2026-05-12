@@ -1,4 +1,5 @@
 ﻿import "package:flutter/material.dart";
+import "dart:async";
 import "package:image_picker/image_picker.dart";
 import "../database/database_helper.dart";
 import "../models/diary_entry.dart";
@@ -13,13 +14,15 @@ class EditDiaryPage extends StatefulWidget {
   State<EditDiaryPage> createState() => _EditDiaryPageState();
 }
 
-class _EditDiaryPageState extends State<EditDiaryPage> {
+class _EditDiaryPageState extends State<EditDiaryPage> with WidgetsBindingObserver {
   late TextEditingController _contentController;
   late TextEditingController _titleController;
   String _selectedMood = '\u{1F60A}';
   String? _imagePath;
   final _formKey = GlobalKey<FormState>();
   bool _alsoThrowBottle = false;
+  Timer? _draftTimer;
+  bool _draftRestored = false;
 
   static const List<String> _moods = [
     '\u{1F60A}', '\u{1F610}', '\u{1F622}', '\u{1F621}',
@@ -29,19 +32,73 @@ class _EditDiaryPageState extends State<EditDiaryPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _contentController = TextEditingController(text: widget.entry?.content ?? "");
     _titleController = TextEditingController(text: widget.entry?.title ?? "");
     if (widget.entry != null) {
       _selectedMood = widget.entry!.moodEmoji;
       _imagePath = widget.entry!.imagePath;
     }
+    // Start autosave timer only for new diary entries
+    if (widget.entry == null) {
+      _draftTimer = Timer.periodic(const Duration(seconds: 30), _autoSaveDraft);
+      // Check for existing draft
+      _loadDraft();
+    }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _draftTimer?.cancel();
     _contentController.dispose();
     _titleController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused && widget.entry == null) {
+      _saveDraft();
+    }
+  }
+
+  Future<void> _loadDraft() async {
+    final draft = await DiaryDatabaseHelper.instance.loadDraft();
+    if (draft == null || _draftRestored) return;
+    if (draft.content.isNotEmpty || (draft.title?.isNotEmpty ?? false)) {
+      setState(() {
+        _contentController.text = draft.content;
+        _titleController.text = draft.title ?? '';
+        _selectedMood = draft.moodEmoji;
+        _imagePath = draft.imagePath;
+        _draftRestored = true;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppLocalizations.of(context).draftRestored)),
+        );
+      }
+    }
+  }
+
+  void _autoSaveDraft(Timer timer) {
+    if (widget.entry != null) return; // editing mode: no draft
+    if (_titleController.text.isEmpty && _contentController.text.isEmpty) return;
+    _saveDraft();
+  }
+
+  Future<void> _saveDraft() async {
+    if (widget.entry != null) return;
+    if (_titleController.text.isEmpty && _contentController.text.isEmpty) return;
+    final entry = DiaryEntry(
+      date: _getTodayDate(),
+      title: _titleController.text.trim().isEmpty ? null : _titleController.text.trim(),
+      content: _contentController.text.trim(),
+      moodEmoji: _selectedMood,
+      imagePath: _imagePath,
+    );
+    await DiaryDatabaseHelper.instance.saveDraft(entry);
   }
 
   String _getTodayDate() {
@@ -68,6 +125,8 @@ class _EditDiaryPageState extends State<EditDiaryPage> {
 
     if (widget.entry == null) {
       await DiaryDatabaseHelper.instance.insert(entry);
+      // Clear draft on successful submit
+      await DiaryDatabaseHelper.instance.clearDrafts();
     } else {
       await DiaryDatabaseHelper.instance.update(entry);
     }
@@ -78,7 +137,6 @@ class _EditDiaryPageState extends State<EditDiaryPage> {
       );
     }
 
-    // Only pop if we were pushed as a route (not as a tab)
     if (mounted && Navigator.of(context).canPop()) {
       Navigator.pop(context, true);
     } else if (mounted) {
@@ -275,3 +333,4 @@ class _EditDiaryPageState extends State<EditDiaryPage> {
     );
   }
 }
+

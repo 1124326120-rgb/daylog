@@ -3,6 +3,7 @@ import "dart:math";
 import "../models/bottle.dart";
 import "../database/database_helper.dart";
 import "../services/bottle_limit_service.dart";
+import "../services/local_bottle_service.dart";
 import "../l10n/app_localizations.dart";
 
 class BottlePage extends StatefulWidget {
@@ -15,7 +16,7 @@ class BottlePage extends StatefulWidget {
 class _BottlePageState extends State<BottlePage> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   int _remainingThrows = 3;
-  int _remainingPicks = 5;
+  int _remainingPicks = 3;
   bool _isPicking = false;
   Bottle? _pickedBottle;
   bool _showBottle = false;
@@ -79,7 +80,6 @@ class _BottlePageState extends State<BottlePage> with SingleTickerProviderStateM
     setState(() => _isThrowing = true);
 
     try {
-      // Store locally instead of LeanCloud
       final bottle = Bottle(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         content: _contentController.text.trim(),
@@ -129,15 +129,14 @@ class _BottlePageState extends State<BottlePage> with SingleTickerProviderStateM
     });
 
     try {
-      // Pick from local database instead of LeanCloud
-      final bottle = await DiaryDatabaseHelper.instance.getRandomBottle();
+      // Use LocalBottleService which populates isLiked field
+      final bottle = await LocalBottleService.instance.pickRandomBottle();
       if (bottle == null) {
         throw Exception('No bottles in the sea');
       }
       await BottleLimitService.instance.recordPick();
       await _loadLimits();
 
-      // Simulate picking animation delay
       await Future.delayed(const Duration(milliseconds: 800));
 
       if (mounted) {
@@ -157,26 +156,21 @@ class _BottlePageState extends State<BottlePage> with SingleTickerProviderStateM
     }
   }
 
-  Future<void> _likeBottle() async {
+  Future<void> _toggleLikeBottle() async {
     if (_pickedBottle == null) return;
     try {
-      await DiaryDatabaseHelper.instance.likeBottle(_pickedBottle!.id);
+      final bottleId = int.parse(_pickedBottle!.id);
+      final isLiked = await LocalBottleService.instance.toggleLike(bottleId);
       if (mounted) {
+        // Refresh likes count from DB
+        final dbBottle = await DiaryDatabaseHelper.instance.getRandomBottle();
+        // Or read it directly: update local state
         setState(() {
-          _pickedBottle = Bottle(
-            id: _pickedBottle!.id,
-            content: _pickedBottle!.content,
-            moodEmoji: _pickedBottle!.moodEmoji,
-            likesCount: _pickedBottle!.likesCount + 1,
-            createdAt: _pickedBottle!.createdAt,
+          _pickedBottle = _pickedBottle!.copyWith(
+            isLiked: isLiked,
+            likesCount: _pickedBottle!.likesCount + (isLiked ? 1 : -1),
           );
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(AppLocalizations.of(context).liked),
-            duration: const Duration(seconds: 1),
-          ),
-        );
       }
     } catch (e) {
       if (mounted) {
@@ -246,7 +240,7 @@ class _BottlePageState extends State<BottlePage> with SingleTickerProviderStateM
           ),
           const SizedBox(height: 32),
 
-          // Picked bottle display (card flip animation simulation)
+          // Picked bottle display
           if (_isPicking)
             _buildPickingAnimation(l10n),
 
@@ -268,33 +262,24 @@ class _BottlePageState extends State<BottlePage> with SingleTickerProviderStateM
             tween: Tween(begin: 0.0, end: 1.0),
             duration: const Duration(milliseconds: 800),
             builder: (context, value, child) {
-              return Transform(
-                alignment: Alignment.center,
-                transform: Matrix4.identity()
-                  ..setEntry(3, 2, 0.001)
-                  ..rotateY(value * pi),
-                child: Card(
-                  elevation: 8,
-                  child: Container(
-                    width: 200,
-                    height: 260,
-                    alignment: Alignment.center,
-                    child: Icon(
-                      Icons.water_drop,
-                      size: 64,
-                      color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5 - (value * 0.3)),
-                    ),
-                  ),
+              return Transform.rotate(
+                angle: value * 2 * pi,
+                child: Opacity(
+                  opacity: value,
+                  child: child,
                 ),
               );
             },
+            child: Icon(
+              Icons.water_drop,
+              size: 80,
+              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5),
+            ),
           ),
           const SizedBox(height: 16),
           Text(
             l10n.searchingSea,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: Theme.of(context).colorScheme.outline,
-            ),
+            style: Theme.of(context).textTheme.bodyLarge,
           ),
         ],
       ),
@@ -370,15 +355,15 @@ class _BottlePageState extends State<BottlePage> with SingleTickerProviderStateM
               ),
               const SizedBox(height: 16),
 
-              // Likes
+              // Likes (toggle: filled vs border heart)
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   IconButton(
-                    onPressed: _likeBottle,
+                    onPressed: _toggleLikeBottle,
                     icon: Icon(
-                      Icons.favorite,
-                      color: Colors.red.withValues(alpha: 0.7),
+                      bottle.isLiked ? Icons.favorite : Icons.favorite_border,
+                      color: bottle.isLiked ? Colors.red : Colors.grey,
                     ),
                     iconSize: 32,
                   ),
@@ -532,3 +517,4 @@ class _BottlePageState extends State<BottlePage> with SingleTickerProviderStateM
     );
   }
 }
+
