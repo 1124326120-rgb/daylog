@@ -8,6 +8,7 @@ import "package:flutter/rendering.dart";
 import "package:intl/intl.dart";
 import "../database/database_helper.dart";
 import "../models/diary_entry.dart";
+import "../l10n/app_localizations.dart";
 
 class ShareReportPage extends StatefulWidget {
   final bool isWeekly;
@@ -64,9 +65,10 @@ class _ShareReportPageState extends State<ShareReportPage> {
       final file = File("${tempDir.path}/$fileName");
       await file.writeAsBytes(byteData.buffer.asUint8List());
 
+      final l10n = AppLocalizations.of(context);
       await Share.shareXFiles(
         [XFile(file.path)],
-        text: widget.isWeekly ? "My Week on DayLog" : "My Month on DayLog",
+        text: widget.isWeekly ? l10n.myWeekOnDayLog : l10n.myMonthOnDayLog,
       );
     } catch (e) {
       if (mounted) {
@@ -81,16 +83,17 @@ class _ShareReportPageState extends State<ShareReportPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     if (_isLoading) {
       return Scaffold(
-        appBar: AppBar(title: Text(widget.isWeekly ? "Weekly Report" : "Monthly Report")),
+        appBar: AppBar(title: Text(widget.isWeekly ? l10n.weeklyReview : l10n.monthlyReview)),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.isWeekly ? "Weekly Report" : "Monthly Report"),
+        title: Text(widget.isWeekly ? l10n.weeklyReview : l10n.monthlyReview),
         actions: [
           IconButton(
             onPressed: _isSharing ? null : _share,
@@ -100,7 +103,7 @@ class _ShareReportPageState extends State<ShareReportPage> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.share),
-            tooltip: "Share",
+            tooltip: l10n.share,
           ),
         ],
       ),
@@ -125,7 +128,7 @@ class _ShareReportPageState extends State<ShareReportPage> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Text(
-                  widget.isWeekly ? "Weekly Review" : "Monthly Review",
+                  widget.isWeekly ? l10n.weeklyReview : l10n.monthlyReview,
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -139,7 +142,7 @@ class _ShareReportPageState extends State<ShareReportPage> {
                 ),
                 const Divider(height: 32),
                 Text(
-                  "${_entries.length} entries",
+                  "${_entries.length}",
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: Theme.of(context).colorScheme.primary,
@@ -147,7 +150,7 @@ class _ShareReportPageState extends State<ShareReportPage> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  "diary entries",
+                  l10n.entriesCount,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Theme.of(context).colorScheme.outline,
                   ),
@@ -156,7 +159,7 @@ class _ShareReportPageState extends State<ShareReportPage> {
 
                 // Show mood summary
                 Text(
-                  "Mood Moments",
+                  l10n.moodDistribution,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -183,7 +186,7 @@ class _ShareReportPageState extends State<ShareReportPage> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    "Made with DayLog - Every Day Matters",
+                    l10n.madeWithDayLog,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: Theme.of(context).colorScheme.onSecondaryContainer,
                     ),

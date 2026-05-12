@@ -1,6 +1,7 @@
-﻿class DiaryEntry {
+﻿class DiaryEntry {
   final int? id;
   final String date;
+  final String? title;
   final String content;
   final String moodEmoji;
   final String? imagePath;
@@ -11,6 +12,7 @@
   DiaryEntry({
     this.id,
     required this.date,
+    this.title,
     required this.content,
     required this.moodEmoji,
     this.imagePath,
@@ -24,6 +26,7 @@
     return {
       if (id != null) 'id': id,
       'date': date,
+      'title': title,
       'content': content,
       'mood_emoji': moodEmoji,
       'image_path': imagePath,
@@ -37,6 +40,7 @@
     return DiaryEntry(
       id: map['id'] as int?,
       date: map['date'] as String,
+      title: map['title'] as String?,
       content: map['content'] as String,
       moodEmoji: map['mood_emoji'] as String,
       imagePath: map['image_path'] as String?,
@@ -49,6 +53,7 @@
   DiaryEntry copyWith({
     int? id,
     String? date,
+    String? title,
     String? content,
     String? moodEmoji,
     String? imagePath,
@@ -59,6 +64,7 @@
     return DiaryEntry(
       id: id ?? this.id,
       date: date ?? this.date,
+      title: title ?? this.title,
       content: content ?? this.content,
       moodEmoji: moodEmoji ?? this.moodEmoji,
       imagePath: imagePath ?? this.imagePath,
@@ -67,4 +73,4 @@
       updatedAt: updatedAt ?? this.updatedAt,
     );
   }
-}
+}
